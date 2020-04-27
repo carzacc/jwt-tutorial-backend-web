@@ -2,6 +2,7 @@ var express = require('express');
 var jwt = require('jsonwebtoken');
 var sqlite = require('sqlite3');
 var crypto = require('crypto');
+var cookieParser = require("cookie-parser");
 
 const KEY = "m yincredibl y(!!1!11!)<'SECRET>)Key'!";
 
@@ -35,11 +36,19 @@ app.post('/login', express.urlencoded(), function(req, res) {
     if(row != undefined ) {
       var payload = {
         username: req.body.username,
+        type: 'access'
       };
 
-      var token = jwt.sign(payload, KEY, {algorithm: 'HS256', expiresIn: "15d"});
+      var csrfPayload = {
+        username: req.body.username,
+        type: 'csrf'
+      };
+
+      var token = jwt.sign(payload, KEY, {algorithm: 'HS256', expiresIn: "15 days"});
+      var csrf = jwt.sign(csrfPayload, KEY, {algorithm: 'HS256', expiresIn: "15 days"});
       console.log("Success");
-      res.send(token);
+      res.cookie('jwt', token, {magAge: 15*24*60*60*1000, httpOnly: true/*, secure: true */});
+      res.send(csrf);
     } else {
       console.error("Failure");
       res.status(401)
@@ -48,12 +57,19 @@ app.post('/login', express.urlencoded(), function(req, res) {
   });
 });
 
-app.get('/data', function(req, res) {
-  var str = req.get('Authorization');
+app.get('/data', cookieParser(),  function(req, res) {
+  var csrf = req.get('CSRF');
+  var str = req.cookies['jwt'];
   try {
-    jwt.verify(str, KEY, {algorithm: 'HS256'});
+    let jwtPayload = jwt.verify(str, KEY);
+    let csrfPayload = jwt.verify(csrf, KEY);
+    if(jwtPayload["type"] != 'access')
+      throw "invalid jwt payload";
+    if(csrfPayload["type"] != 'csrf')
+      throw "invalid anti-CSRF token payload"
     res.send("Very Secret Data");
-  } catch {
+  } catch(e) {
+    console.error(e);
     res.status(401);
     res.send("Bad Token");
   }

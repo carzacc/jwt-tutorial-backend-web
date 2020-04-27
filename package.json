@@ -9,6 +9,7 @@
   "author": "Carmine Zaccagnino",
   "license": "MIT",
   "dependencies": {
+    "cookie-parser": "^1.4.5",
     "express": "^4.17.1",
     "jsonwebtoken": "^8.5.1",
     "sqlite3": "^4.1.1"
